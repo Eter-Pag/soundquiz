@@ -1,0 +1,17 @@
+export const colors = {
+  cream:       '#F5F0E8',
+  creamDark:   '#EDE6D6',
+  creamDeep:   '#E0D8C8',
+  purple:      '#4A3570',
+  purpleMid:   '#6B4FA0',
+  purpleLight: '#9B7FCC',
+  purplePale:  '#E8E0F5',
+  textDark:    '#1C1628',
+  textMid:     '#4A4360',
+  textSoft:    '#8A80A0',
+  white:       '#FFFFFF',
+  correct:     '#4A7C59',
+  correctBg:   '#EDF5F0',
+  wrong:       '#8B3A3A',
+  wrongBg:     '#F5EDED',
+};
