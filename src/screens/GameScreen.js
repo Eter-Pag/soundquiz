@@ -58,7 +58,14 @@ export default function GameScreen({ route, navigation }) {
 
   useEffect(() => {
     generateOptions();
-    return () => stopAudio();
+    // Pequeño delay para asegurar que la UI esté lista antes de sonar
+    const timer = setTimeout(() => {
+      playFragment();
+    }, 500);
+    return () => {
+      clearTimeout(timer);
+      stopAudio();
+    };
   }, [current]);
 
   useEffect(() => {
