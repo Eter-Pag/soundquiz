@@ -10,18 +10,10 @@ const { width } = Dimensions.get('window');
 
 export default function HomeScreen({ navigation }) {
   const [selectedFandom, setSelectedFandom] = useState(FANDOMS[0].id);
-  const [difficulty, setDifficulty] = useState('easy');
-
-  const difficulties = [
-    { id: 'easy', label: 'PRINCIPIANTE', color: '#10B981', icon: '🌱' },
-    { id: 'medium', label: 'EXPERTO', color: '#F59E0B', icon: '🔥' },
-    { id: 'hard', label: 'LEYENDA', color: '#EF4444', icon: '👑' },
-  ];
 
   const handleStart = () => {
     navigation.navigate('Game', {
-      fandomId: selectedFandom,
-      difficulty: difficulty
+      fandomId: selectedFandom
     });
   };
 
@@ -64,33 +56,8 @@ export default function HomeScreen({ navigation }) {
           </View>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>NIVEL DE DESAFÍO</Text>
-          <View style={styles.difficultyContainer}>
-            {difficulties.map((d) => (
-              <TouchableOpacity
-                key={d.id}
-                style={[
-                  styles.diffCard,
-                  difficulty === d.id && { borderColor: d.color, backgroundColor: d.color + '10' }
-                ]}
-                onPress={() => setDifficulty(d.id)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.diffIcon}>{d.icon}</Text>
-                <Text style={[
-                  styles.diffLabel,
-                  difficulty === d.id ? { color: d.color } : { color: colors.textTertiary }
-                ]}>{d.label}</Text>
-                <View style={[
-                  styles.radioOuter,
-                  difficulty === d.id && { borderColor: d.color }
-                ]}>
-                  {difficulty === d.id && <View style={[styles.radioInner, { backgroundColor: d.color }]} />}
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
+        <View style={styles.infoBox}>
+          <Text style={styles.infoText}>🎵 Ronda de 10 canciones aleatorias</Text>
         </View>
 
         <TouchableOpacity 
@@ -99,7 +66,7 @@ export default function HomeScreen({ navigation }) {
           activeOpacity={0.9}
         >
           <Text style={styles.startBtnText}>¡A JUGAR!</Text>
-          <Text style={styles.startBtnSub}>Toca para comenzar</Text>
+          <Text style={styles.startBtnSub}>Toca para comenzar el desafío</Text>
         </TouchableOpacity>
 
       </ScrollView>
@@ -118,8 +85,8 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    marginTop: 30,
-    marginBottom: 40,
+    marginTop: 40,
+    marginBottom: 50,
   },
   logoContainer: {
     alignItems: 'center',
@@ -149,13 +116,13 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   section: {
-    marginBottom: 30,
+    marginBottom: 40,
   },
   sectionLabel: {
     fontSize: 12,
     fontWeight: '800',
     color: colors.textTertiary,
-    marginBottom: 15,
+    marginBottom: 20,
     letterSpacing: 2,
     textAlign: 'center',
   },
@@ -169,7 +136,7 @@ const styles = StyleSheet.create({
     width: (width - 70) / 2,
     backgroundColor: colors.surface,
     borderRadius: 24,
-    padding: 20,
+    padding: 25,
     alignItems: 'center',
     borderWidth: 2,
     borderColor: colors.border,
@@ -187,22 +154,22 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
   },
   emojiCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 70,
+    height: 70,
+    borderRadius: 35,
     backgroundColor: colors.background,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
+    marginBottom: 15,
   },
   emojiCircleSelected: {
     backgroundColor: colors.primaryLight,
   },
   fandomEmoji: {
-    fontSize: 30,
+    fontSize: 36,
   },
   fandomName: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '800',
     color: colors.textSecondary,
   },
@@ -210,54 +177,29 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
   activeDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: colors.primary,
-    marginTop: 8,
+    marginTop: 10,
   },
-  difficultyContainer: {
-    gap: 10,
-  },
-  diffCard: {
-    flexDirection: 'row',
+  infoBox: {
+    backgroundColor: colors.primaryLight,
+    padding: 15,
+    borderRadius: 15,
+    marginBottom: 30,
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    padding: 16,
-    borderRadius: 20,
-    borderWidth: 2,
-    borderColor: colors.border,
   },
-  diffIcon: {
-    fontSize: 24,
-    marginRight: 15,
-  },
-  diffLabel: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '800',
-    letterSpacing: 1,
-  },
-  radioOuter: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 2,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  radioInner: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+  infoText: {
+    color: colors.primary,
+    fontWeight: '700',
+    fontSize: 14,
   },
   startBtn: {
     backgroundColor: colors.primary,
     paddingVertical: 22,
     borderRadius: 25,
     alignItems: 'center',
-    marginTop: 10,
     elevation: 10,
     shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 10 },

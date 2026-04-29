@@ -23,15 +23,12 @@ function getRandomStart(song) {
 }
 
 export default function GameScreen({ route, navigation }) {
-  const { fandomId, difficulty } = route.params;
+  const { fandomId } = route.params;
   const fandom = FANDOMS.find(f => f.id === fandomId);
 
   const buildQueue = () => {
-    let pool = fandom.songs;
-    if (difficulty === 'medium') pool = pool.filter(s => s.difficulty !== 'easy');
-    if (difficulty === 'hard') pool = pool.filter(s => s.difficulty === 'hard');
-    if (pool.length < 4) pool = fandom.songs;
-    return shuffle(pool).slice(0, Math.min(10, pool.length));
+    // Mezcla todas las canciones disponibles y toma 10 al azar
+    return shuffle(fandom.songs).slice(0, Math.min(10, fandom.songs.length));
   };
 
   // Estados del juego
@@ -43,7 +40,7 @@ export default function GameScreen({ route, navigation }) {
   const [correctCount, setCorrectCount] = useState(0);
   
   // Estados de UI
-  const [isReady, setIsReady] = useState(false); // Pantalla de "Prepárate"
+  const [isReady, setIsReady] = useState(false);
   const [answered, setAnswered] = useState(false);
   const [options, setOptions] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -53,7 +50,6 @@ export default function GameScreen({ route, navigation }) {
   // Referencias de Audio
   const currentSound = useRef(null);
   const nextSound = useRef(null);
-  const [nextReady, setNextReady] = useState(false);
 
   // Animaciones
   const timerAnim = useRef(new Animated.Value(1)).current;
@@ -63,13 +59,12 @@ export default function GameScreen({ route, navigation }) {
 
   const question = queue[current];
 
-  // 1. Inicialización: Cargar la primera canción y mostrar "Prepárate"
+  // 1. Inicialización
   useEffect(() => {
     const initGame = async () => {
       await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
       await prepareSound(0, 'current');
       setIsReady(true);
-      // Precargar la segunda canción de una vez
       if (queue.length > 1) prepareSound(1, 'next');
     };
     initGame();
@@ -102,7 +97,6 @@ export default function GameScreen({ route, navigation }) {
         currentSound.current = sound;
       } else {
         nextSound.current = sound;
-        setNextReady(true);
       }
     } catch (e) {
       console.log("Error cargando audio:", e);
@@ -125,14 +119,12 @@ export default function GameScreen({ route, navigation }) {
       setPlaying(true);
       await currentSound.current.playAsync();
 
-      // Animación del timer
       Animated.timing(timerAnim, {
         toValue: 0,
         duration: CLIP_DURATION,
         useNativeDriver: false,
       }).start();
 
-      // Pulso visual
       Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, { toValue: 1.15, duration: 500, useNativeDriver: true }),
@@ -174,7 +166,6 @@ export default function GameScreen({ route, navigation }) {
       setFeedback(opt.id === 'timeout' ? `⏰ Tiempo: ${question.title}` : `❌ Era: ${question.title}`);
     }
 
-    // Animación de la barra de progreso general
     Animated.spring(progressAnim, {
       toValue: (current + 1) / queue.length,
       useNativeDriver: false,
@@ -186,24 +177,17 @@ export default function GameScreen({ route, navigation }) {
   const nextQuestion = async () => {
     if (current + 1 >= queue.length) {
       navigation.replace('Results', {
-        score, correct: correctCount, total: queue.length, maxStreak, fandomId, difficulty
+        score, correct: correctCount, total: queue.length, maxStreak, fandomId
       });
       return;
     }
 
-    // ROTACIÓN DE BUFFER:
-    // 1. Soltar el sonido viejo
     if (currentSound.current) await currentSound.current.unloadAsync().catch(()=>{});
-    
-    // 2. El que era "next" ahora es "current"
     currentSound.current = nextSound.current;
     nextSound.current = null;
-    setNextReady(false);
 
-    // 3. Avanzar el índice
     setCurrent(c => c + 1);
 
-    // 4. Precargar el siguiente en el fondo
     if (current + 2 < queue.length) {
       prepareSound(current + 2, 'next');
     }
@@ -214,7 +198,7 @@ export default function GameScreen({ route, navigation }) {
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>¡Prepárate!</Text>
-        <Text style={styles.loadingSub}>Cargando primer fragmento...</Text>
+        <Text style={styles.loadingSub}>Cargando desafío...</Text>
       </View>
     );
   }
