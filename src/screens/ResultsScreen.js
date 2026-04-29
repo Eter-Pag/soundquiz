@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  ScrollView, StatusBar,
+  ScrollView, StatusBar, SafeAreaView
 } from 'react-native';
 import { colors } from '../theme';
 
@@ -10,143 +10,181 @@ export default function ResultsScreen({ route, navigation }) {
   const pct = correct / total;
 
   let icon, title, sub;
-  if (pct === 1)       { icon = '🏆'; title = '¡Perfecto!';        sub = 'Conoces cada canción al dedillo.'; }
-  else if (pct >= 0.8) { icon = '🌟'; title = '¡Excelente fan!';   sub = 'Casi perfecto, impresionante.'; }
-  else if (pct >= 0.5) { icon = '🎵'; title = '¡Buen trabajo!';    sub = 'Sigues aprendiendo las canciones.'; }
-  else                 { icon = '🎧'; title = 'Sigue escuchando';  sub = 'La práctica hace al maestro.'; }
+  if (pct === 1) { 
+    icon = '🏆'; title = '¡Perfecto!'; sub = '¡Eres un fan legendario!'; 
+  } else if (pct >= 0.8) { 
+    icon = '🌟'; title = '¡Increíble!'; sub = 'Casi perfecto, ¡muy bien!'; 
+  } else if (pct >= 0.5) { 
+    icon = '🎵'; title = '¡Buen intento!'; sub = 'Conoces bien las canciones.'; 
+  } else { 
+    icon = '🎧'; title = '¡A practicar!'; sub = 'Sigue escuchando para mejorar.'; 
+  }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.cream} />
-
-      <Text style={styles.icon}>{icon}</Text>
-      <Text style={styles.title}>{title}</Text>
-      <Text style={styles.sub}>{sub}</Text>
-
-      {/* Score card */}
-      <View style={styles.scoreCard}>
-        <View style={styles.scoreItem}>
-          <Text style={styles.scoreNum}>{score}</Text>
-          <Text style={styles.scoreLabel}>PUNTOS</Text>
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" />
+      <ScrollView contentContainerStyle={styles.content}>
+        
+        <View style={styles.resultCard}>
+          <Text style={styles.icon}>{icon}</Text>
+          <Text style={styles.title}>{title}</Text>
+          <Text style={styles.subtitle}>{sub}</Text>
         </View>
-        <View style={styles.scoreDivider} />
-        <View style={styles.scoreItem}>
-          <Text style={styles.scoreNum}>{correct}/{total}</Text>
-          <Text style={styles.scoreLabel}>CORRECTAS</Text>
-        </View>
-        <View style={styles.scoreDivider} />
-        <View style={styles.scoreItem}>
-          <Text style={styles.scoreNum}>{maxStreak}</Text>
-          <Text style={styles.scoreLabel}>RACHA MÁX</Text>
-        </View>
-      </View>
 
-      {/* Actions */}
-      <TouchableOpacity
-        style={styles.btnPrimary}
-        onPress={() => navigation.replace('Game', { fandomId, difficulty })}
-        activeOpacity={0.85}
-      >
-        <Text style={styles.btnPrimaryText}>Jugar de nuevo</Text>
-      </TouchableOpacity>
+        <View style={styles.statsRow}>
+          <View style={styles.statBox}>
+            <Text style={styles.statLabel}>PUNTUACIÓN</Text>
+            <Text style={styles.statValue}>{score}</Text>
+          </View>
+          <View style={styles.statBox}>
+            <Text style={styles.statLabel}>ACIERTOS</Text>
+            <Text style={styles.statValue}>{correct}/{total}</Text>
+          </View>
+        </View>
 
-      <TouchableOpacity
-        style={styles.btnSecondary}
-        onPress={() => navigation.navigate('Home')}
-        activeOpacity={0.85}
-      >
-        <Text style={styles.btnSecondaryText}>Cambiar fandom</Text>
-      </TouchableOpacity>
-    </ScrollView>
+        <View style={styles.streakCard}>
+          <Text style={styles.streakLabel}>MEJOR RACHA</Text>
+          <Text style={styles.streakValue}>🔥 {maxStreak}</Text>
+        </View>
+
+        <View style={styles.actions}>
+          <TouchableOpacity 
+            style={styles.mainBtn} 
+            onPress={() => navigation.replace('Game', { fandomId, difficulty })}
+          >
+            <Text style={styles.mainBtnText}>REINTENTAR</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.secondaryBtn} 
+            onPress={() => navigation.replace('Home')}
+          >
+            <Text style={styles.secondaryBtnText}>VOLVER AL INICIO</Text>
+          </TouchableOpacity>
+        </View>
+
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.cream,
+    backgroundColor: colors.background,
   },
   content: {
-    padding: 32,
-    paddingTop: 80,
+    padding: 25,
     alignItems: 'center',
-    gap: 20,
+  },
+  resultCard: {
+    backgroundColor: colors.surface,
+    width: '100%',
+    borderRadius: 30,
+    padding: 40,
+    alignItems: 'center',
+    marginTop: 20,
+    marginBottom: 25,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
   },
   icon: {
-    fontSize: 72,
+    fontSize: 80,
+    marginBottom: 20,
   },
   title: {
-    fontSize: 38,
-    fontWeight: '600',
-    color: colors.purple,
-    letterSpacing: -0.5,
-    textAlign: 'center',
+    fontSize: 32,
+    fontWeight: '900',
+    color: colors.textPrimary,
+    marginBottom: 10,
   },
-  sub: {
-    fontSize: 14,
-    color: colors.textSoft,
-    fontWeight: '300',
-    textAlign: 'center',
-  },
-  scoreCard: {
-    width: '100%',
-    backgroundColor: colors.white,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.creamDeep,
-    padding: 24,
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
-    elevation: 4,
-  },
-  scoreItem: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 6,
-  },
-  scoreNum: {
-    fontSize: 38,
-    fontWeight: '600',
-    color: colors.purple,
-    lineHeight: 42,
-  },
-  scoreLabel: {
-    fontSize: 10,
-    letterSpacing: 1.5,
-    color: colors.textSoft,
-    fontWeight: '500',
-  },
-  scoreDivider: {
-    width: 1,
-    height: 48,
-    backgroundColor: colors.creamDeep,
-  },
-  btnPrimary: {
-    width: '100%',
-    backgroundColor: colors.purple,
-    borderRadius: 16,
-    paddingVertical: 18,
-    alignItems: 'center',
-    elevation: 6,
-    marginTop: 8,
-  },
-  btnPrimaryText: {
-    color: colors.cream,
+  subtitle: {
     fontSize: 16,
+    color: colors.textSecondary,
+    textAlign: 'center',
     fontWeight: '500',
   },
-  btnSecondary: {
-    width: '100%',
-    borderRadius: 16,
-    paddingVertical: 16,
+  statsRow: {
+    flexDirection: 'row',
+    gap: 15,
+    marginBottom: 15,
+  },
+  statBox: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    padding: 20,
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: colors.purpleLight,
+    borderColor: colors.border,
   },
-  btnSecondaryText: {
-    color: colors.purple,
-    fontSize: 15,
-    fontWeight: '500',
+  statLabel: {
+    fontSize: 12,
+    color: colors.textTertiary,
+    fontWeight: 'bold',
+    marginBottom: 5,
+  },
+  statValue: {
+    fontSize: 24,
+    fontWeight: '900',
+    color: colors.primary,
+  },
+  streakCard: {
+    width: '100%',
+    backgroundColor: colors.primaryLight,
+    borderRadius: 20,
+    padding: 20,
+    alignItems: 'center',
+    marginBottom: 30,
+    borderWidth: 2,
+    borderColor: colors.primary,
+  },
+  streakLabel: {
+    fontSize: 12,
+    color: colors.primary,
+    fontWeight: 'bold',
+    marginBottom: 5,
+  },
+  streakValue: {
+    fontSize: 28,
+    fontWeight: '900',
+    color: colors.primary,
+  },
+  actions: {
+    width: '100%',
+    gap: 12,
+  },
+  mainBtn: {
+    backgroundColor: colors.primary,
+    paddingVertical: 18,
+    borderRadius: 20,
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  mainBtnText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+  secondaryBtn: {
+    backgroundColor: colors.surface,
+    paddingVertical: 18,
+    borderRadius: 20,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: colors.border,
+  },
+  secondaryBtnText: {
+    color: colors.textSecondary,
+    fontSize: 16,
+    fontWeight: '700',
   },
 });

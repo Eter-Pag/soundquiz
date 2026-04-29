@@ -1,17 +1,29 @@
 export const colors = {
-  cream:       '#F5F0E8',
-  creamDark:   '#EDE6D6',
-  creamDeep:   '#E0D8C8',
-  purple:      '#4A3570',
-  purpleMid:   '#6B4FA0',
-  purpleLight: '#9B7FCC',
-  purplePale:  '#E8E0F5',
-  textDark:    '#1C1628',
-  textMid:     '#4A4360',
-  textSoft:    '#8A80A0',
-  white:       '#FFFFFF',
-  correct:     '#4A7C59',
-  correctBg:   '#EDF5F0',
-  wrong:       '#8B3A3A',
-  wrongBg:     '#F5EDED',
+  // Base
+  background: '#F8F9FA',
+  surface: '#FFFFFF',
+  
+  // Brand
+  primary: '#6366F1', // Indigo moderno
+  primaryDark: '#4F46E5',
+  primaryLight: '#EEF2FF',
+  
+  // Accents
+  secondary: '#EC4899', // Rosa vibrante
+  accent: '#F59E0B', // Ámbar para puntajes
+  
+  // Feedback
+  success: '#10B981',
+  successBg: '#ECFDF5',
+  error: '#EF4444',
+  errorBg: '#FEF2F2',
+  
+  // Text
+  textPrimary: '#111827',
+  textSecondary: '#4B5563',
+  textTertiary: '#9CA3AF',
+  
+  // UI Elements
+  border: '#E5E7EB',
+  shadow: '#000000',
 };

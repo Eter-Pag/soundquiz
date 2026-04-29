@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  ScrollView, StatusBar, Dimensions,
+  ScrollView, StatusBar, Dimensions, SafeAreaView
 } from 'react-native';
 import { colors } from '../theme';
 import { FANDOMS } from '../data/songs';
@@ -13,187 +13,194 @@ export default function HomeScreen({ navigation }) {
   const [difficulty, setDifficulty] = useState('easy');
 
   const difficulties = [
-    { id: 'easy',   label: 'Fácil' },
-    { id: 'medium', label: 'Normal' },
-    { id: 'hard',   label: 'Difícil' },
+    { id: 'easy', label: 'Fácil', color: '#10B981' },
+    { id: 'medium', label: 'Normal', color: '#F59E0B' },
+    { id: 'hard', label: 'Difícil', color: '#EF4444' },
   ];
 
   const handleStart = () => {
-    navigation.navigate('Game', { fandomId: selectedFandom, difficulty });
+    navigation.navigate('Game', {
+      fandomId: selectedFandom,
+      difficulty: difficulty
+    });
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.cream} />
-
-      {/* Logo */}
-      <View style={styles.logoArea}>
-        <View style={styles.logoIcon}>
-          <Text style={styles.logoEmoji}>♪</Text>
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" />
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        
+        <View style={styles.header}>
+          <Text style={styles.title}>Sound<Text style={styles.titleAccent}>Quiz</Text></Text>
+          <Text style={styles.subtitle}>Pon a prueba tu oído musical</Text>
         </View>
-        <Text style={styles.logoTitle}>SoundQuiz</Text>
-        <Text style={styles.logoSub}>Adivina la canción antes de que acabe</Text>
-      </View>
 
-      {/* Fandom selector */}
-      <View style={styles.section}>
-        <Text style={styles.sectionLabel}>ELIGE TU FANDOM</Text>
-        <View style={styles.fandomRow}>
-          {FANDOMS.map(f => (
-            <TouchableOpacity
-              key={f.id}
-              style={[styles.fandomCard, selectedFandom === f.id && styles.fandomCardSelected]}
-              onPress={() => setSelectedFandom(f.id)}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.fandomEmoji}>{f.emoji}</Text>
-              <Text style={[styles.fandomName, selectedFandom === f.id && styles.fandomNameSelected]}>
-                {f.name}
-              </Text>
-            </TouchableOpacity>
-          ))}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>1. Elige tu Fandom</Text>
+          <View style={styles.fandomGrid}>
+            {FANDOMS.map((f) => (
+              <TouchableOpacity
+                key={f.id}
+                style={[
+                  styles.fandomCard,
+                  selectedFandom === f.id && styles.fandomCardSelected
+                ]}
+                onPress={() => setSelectedFandom(f.id)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.fandomEmoji}>{f.emoji}</Text>
+                <Text style={[
+                  styles.fandomName,
+                  selectedFandom === f.id && styles.fandomNameSelected
+                ]}>{f.name}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
-      </View>
 
-      {/* Difficulty */}
-      <View style={styles.section}>
-        <Text style={styles.sectionLabel}>DIFICULTAD</Text>
-        <View style={styles.diffRow}>
-          {difficulties.map(d => (
-            <TouchableOpacity
-              key={d.id}
-              style={[styles.diffBtn, difficulty === d.id && styles.diffBtnActive]}
-              onPress={() => setDifficulty(d.id)}
-              activeOpacity={0.8}
-            >
-              <Text style={[styles.diffLabel, difficulty === d.id && styles.diffLabelActive]}>
-                {d.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>2. Dificultad</Text>
+          <View style={styles.difficultyRow}>
+            {difficulties.map((d) => (
+              <TouchableOpacity
+                key={d.id}
+                style={[
+                  styles.diffBtn,
+                  difficulty === d.id && { backgroundColor: d.color, borderColor: d.color }
+                ]}
+                onPress={() => setDifficulty(d.id)}
+                activeOpacity={0.7}
+              >
+                <Text style={[
+                  styles.diffText,
+                  difficulty === d.id && { color: '#FFF' }
+                ]}>{d.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
-      </View>
 
-      {/* Start */}
-      <TouchableOpacity style={styles.btnPrimary} onPress={handleStart} activeOpacity={0.85}>
-        <Text style={styles.btnPrimaryText}>Comenzar Quiz</Text>
-      </TouchableOpacity>
-    </ScrollView>
+        <TouchableOpacity 
+          style={styles.startBtn} 
+          onPress={handleStart}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.startBtnText}>¡EMPEZAR JUEGO!</Text>
+        </TouchableOpacity>
+
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.cream,
+    backgroundColor: colors.background,
   },
-  content: {
-    padding: 32,
-    paddingTop: 60,
-    gap: 36,
+  scrollContent: {
+    padding: 25,
+    paddingBottom: 40,
   },
-  logoArea: {
+  header: {
     alignItems: 'center',
-    gap: 12,
+    marginTop: 20,
+    marginBottom: 40,
   },
-  logoIcon: {
-    width: 88, height: 88,
-    borderRadius: 24,
-    backgroundColor: colors.purple,
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 10,
-  },
-  logoEmoji: {
-    fontSize: 40,
-    color: colors.cream,
-  },
-  logoTitle: {
+  title: {
     fontSize: 42,
-    fontWeight: '600',
-    color: colors.purple,
-    letterSpacing: -0.5,
+    fontWeight: '900',
+    color: colors.textPrimary,
+    letterSpacing: -1,
   },
-  logoSub: {
-    fontSize: 14,
-    color: colors.textSoft,
-    fontWeight: '300',
-    letterSpacing: 0.3,
+  titleAccent: {
+    color: colors.primary,
   },
-  section: {
-    gap: 14,
-  },
-  sectionLabel: {
-    fontSize: 11,
-    letterSpacing: 2,
-    color: colors.textSoft,
+  subtitle: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    marginTop: 5,
     fontWeight: '500',
   },
-  fandomRow: {
+  section: {
+    marginBottom: 35,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 15,
+    marginLeft: 5,
+  },
+  fandomGrid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 12,
   },
   fandomCard: {
-    flex: 1,
-    backgroundColor: colors.white,
-    borderWidth: 2,
-    borderColor: colors.creamDeep,
-    borderRadius: 16,
-    padding: 16,
+    width: (width - 62) / 2,
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    padding: 20,
     alignItems: 'center',
-    gap: 6,
+    borderWidth: 2,
+    borderColor: colors.border,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
   },
   fandomCardSelected: {
-    borderColor: colors.purple,
-    backgroundColor: colors.purplePale,
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryLight,
   },
   fandomEmoji: {
-    fontSize: 28,
+    fontSize: 32,
+    marginBottom: 8,
   },
   fandomName: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: colors.textMid,
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: colors.textSecondary,
   },
   fandomNameSelected: {
-    color: colors.purple,
+    color: colors.primary,
   },
-  diffRow: {
+  difficultyRow: {
     flexDirection: 'row',
-    gap: 8,
+    justifyContent: 'space-between',
+    gap: 10,
   },
   diffBtn: {
     flex: 1,
     paddingVertical: 12,
-    borderRadius: 12,
+    borderRadius: 15,
+    backgroundColor: colors.surface,
     borderWidth: 2,
-    borderColor: colors.creamDeep,
-    backgroundColor: colors.white,
+    borderColor: colors.border,
     alignItems: 'center',
   },
-  diffBtnActive: {
-    backgroundColor: colors.purple,
-    borderColor: colors.purple,
+  diffText: {
+    fontWeight: 'bold',
+    color: colors.textSecondary,
   },
-  diffLabel: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: colors.textSoft,
-  },
-  diffLabelActive: {
-    color: colors.cream,
-  },
-  btnPrimary: {
-    backgroundColor: colors.purple,
-    borderRadius: 16,
-    paddingVertical: 18,
+  startBtn: {
+    backgroundColor: colors.primary,
+    paddingVertical: 20,
+    borderRadius: 20,
     alignItems: 'center',
-    elevation: 6,
+    marginTop: 10,
+    elevation: 5,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
   },
-  btnPrimaryText: {
-    color: colors.cream,
-    fontSize: 16,
-    fontWeight: '500',
-    letterSpacing: 0.3,
+  startBtnText: {
+    color: '#FFF',
+    fontSize: 18,
+    fontWeight: '900',
+    letterSpacing: 1,
   },
 });
