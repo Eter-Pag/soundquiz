@@ -13,9 +13,9 @@ export default function HomeScreen({ navigation }) {
   const [difficulty, setDifficulty] = useState('easy');
 
   const difficulties = [
-    { id: 'easy', label: 'Fácil', color: '#10B981' },
-    { id: 'medium', label: 'Normal', color: '#F59E0B' },
-    { id: 'hard', label: 'Difícil', color: '#EF4444' },
+    { id: 'easy', label: 'PRINCIPIANTE', color: '#10B981', icon: '🌱' },
+    { id: 'medium', label: 'EXPERTO', color: '#F59E0B', icon: '🔥' },
+    { id: 'hard', label: 'LEYENDA', color: '#EF4444', icon: '👑' },
   ];
 
   const handleStart = () => {
@@ -28,15 +28,18 @@ export default function HomeScreen({ navigation }) {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         
         <View style={styles.header}>
-          <Text style={styles.title}>Sound<Text style={styles.titleAccent}>Quiz</Text></Text>
-          <Text style={styles.subtitle}>Pon a prueba tu oído musical</Text>
+          <View style={styles.logoContainer}>
+            <Text style={styles.title}>SOUND<Text style={styles.titleAccent}>QUIZ</Text></Text>
+            <View style={styles.logoUnderline} />
+          </View>
+          <Text style={styles.subtitle}>¿Qué tan bueno es tu oído?</Text>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>1. Elige tu Fandom</Text>
+          <Text style={styles.sectionLabel}>SELECCIONA TU GRUPO</Text>
           <View style={styles.fandomGrid}>
             {FANDOMS.map((f) => (
               <TouchableOpacity
@@ -46,35 +49,45 @@ export default function HomeScreen({ navigation }) {
                   selectedFandom === f.id && styles.fandomCardSelected
                 ]}
                 onPress={() => setSelectedFandom(f.id)}
-                activeOpacity={0.7}
+                activeOpacity={0.8}
               >
-                <Text style={styles.fandomEmoji}>{f.emoji}</Text>
+                <View style={[styles.emojiCircle, selectedFandom === f.id && styles.emojiCircleSelected]}>
+                  <Text style={styles.fandomEmoji}>{f.emoji}</Text>
+                </View>
                 <Text style={[
                   styles.fandomName,
                   selectedFandom === f.id && styles.fandomNameSelected
                 ]}>{f.name}</Text>
+                {selectedFandom === f.id && <View style={styles.activeDot} />}
               </TouchableOpacity>
             ))}
           </View>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>2. Dificultad</Text>
-          <View style={styles.difficultyRow}>
+          <Text style={styles.sectionLabel}>NIVEL DE DESAFÍO</Text>
+          <View style={styles.difficultyContainer}>
             {difficulties.map((d) => (
               <TouchableOpacity
                 key={d.id}
                 style={[
-                  styles.diffBtn,
-                  difficulty === d.id && { backgroundColor: d.color, borderColor: d.color }
+                  styles.diffCard,
+                  difficulty === d.id && { borderColor: d.color, backgroundColor: d.color + '10' }
                 ]}
                 onPress={() => setDifficulty(d.id)}
                 activeOpacity={0.7}
               >
+                <Text style={styles.diffIcon}>{d.icon}</Text>
                 <Text style={[
-                  styles.diffText,
-                  difficulty === d.id && { color: '#FFF' }
+                  styles.diffLabel,
+                  difficulty === d.id ? { color: d.color } : { color: colors.textTertiary }
                 ]}>{d.label}</Text>
+                <View style={[
+                  styles.radioOuter,
+                  difficulty === d.id && { borderColor: d.color }
+                ]}>
+                  {difficulty === d.id && <View style={[styles.radioInner, { backgroundColor: d.color }]} />}
+                </View>
               </TouchableOpacity>
             ))}
           </View>
@@ -83,9 +96,10 @@ export default function HomeScreen({ navigation }) {
         <TouchableOpacity 
           style={styles.startBtn} 
           onPress={handleStart}
-          activeOpacity={0.8}
+          activeOpacity={0.9}
         >
-          <Text style={styles.startBtnText}>¡EMPEZAR JUEGO!</Text>
+          <Text style={styles.startBtnText}>¡A JUGAR!</Text>
+          <Text style={styles.startBtnSub}>Toca para comenzar</Text>
         </TouchableOpacity>
 
       </ScrollView>
@@ -99,53 +113,67 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   scrollContent: {
-    padding: 25,
+    padding: 20,
     paddingBottom: 40,
   },
   header: {
     alignItems: 'center',
-    marginTop: 20,
+    marginTop: 30,
     marginBottom: 40,
   },
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: 8,
+  },
   title: {
-    fontSize: 42,
+    fontSize: 48,
     fontWeight: '900',
     color: colors.textPrimary,
-    letterSpacing: -1,
+    letterSpacing: -2,
   },
   titleAccent: {
     color: colors.primary,
   },
+  logoUnderline: {
+    width: 60,
+    height: 6,
+    backgroundColor: colors.secondary,
+    borderRadius: 3,
+    marginTop: -5,
+  },
   subtitle: {
-    fontSize: 16,
+    fontSize: 14,
     color: colors.textSecondary,
-    marginTop: 5,
-    fontWeight: '500',
+    fontWeight: '600',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
   },
   section: {
-    marginBottom: 35,
+    marginBottom: 30,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.textPrimary,
+  sectionLabel: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.textTertiary,
     marginBottom: 15,
-    marginLeft: 5,
+    letterSpacing: 2,
+    textAlign: 'center',
   },
   fandomGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    justifyContent: 'center',
+    gap: 15,
   },
   fandomCard: {
-    width: (width - 62) / 2,
+    width: (width - 70) / 2,
     backgroundColor: colors.surface,
-    borderRadius: 20,
+    borderRadius: 24,
     padding: 20,
     alignItems: 'center',
     borderWidth: 2,
     borderColor: colors.border,
-    elevation: 3,
+    elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -153,54 +181,100 @@ const styles = StyleSheet.create({
   },
   fandomCardSelected: {
     borderColor: colors.primary,
+    backgroundColor: colors.surface,
+    elevation: 8,
+    shadowColor: colors.primary,
+    shadowOpacity: 0.15,
+  },
+  emojiCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  emojiCircleSelected: {
     backgroundColor: colors.primaryLight,
   },
   fandomEmoji: {
-    fontSize: 32,
-    marginBottom: 8,
+    fontSize: 30,
   },
   fandomName: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '800',
     color: colors.textSecondary,
   },
   fandomNameSelected: {
     color: colors.primary,
   },
-  difficultyRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  activeDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.primary,
+    marginTop: 8,
+  },
+  difficultyContainer: {
     gap: 10,
   },
-  diffBtn: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 15,
+  diffCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: colors.surface,
+    padding: 16,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: colors.border,
+  },
+  diffIcon: {
+    fontSize: 24,
+    marginRight: 15,
+  },
+  diffLabel: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+  radioOuter: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     borderWidth: 2,
     borderColor: colors.border,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  diffText: {
-    fontWeight: 'bold',
-    color: colors.textSecondary,
+  radioInner: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
   },
   startBtn: {
     backgroundColor: colors.primary,
-    paddingVertical: 20,
-    borderRadius: 20,
+    paddingVertical: 22,
+    borderRadius: 25,
     alignItems: 'center',
     marginTop: 10,
-    elevation: 5,
+    elevation: 10,
     shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.3,
-    shadowRadius: 8,
+    shadowRadius: 15,
   },
   startBtnText: {
     color: '#FFF',
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: '900',
-    letterSpacing: 1,
+    letterSpacing: 2,
+  },
+  startBtnSub: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 2,
+    textTransform: 'uppercase',
   },
 });
