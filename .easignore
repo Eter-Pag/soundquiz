@@ -1,0 +1,20 @@
+# Audios locales — se sirven desde Firebase, no van en el build
+assets/audio/
+
+# Git
+.git/
+
+# Expo local cache
+.expo/
+
+# Editor
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*

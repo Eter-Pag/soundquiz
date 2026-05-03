@@ -1,312 +1,426 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  Animated, StatusBar, Dimensions, SafeAreaView,
-  ActivityIndicator
+  Animated, StatusBar, Dimensions,
 } from 'react-native';
 import { Audio } from 'expo-av';
-import { colors } from '../theme';
-import { FANDOMS } from '../data/songs';
+import { colors, getFandomTheme } from '../theme';
+import { fetchSongs, fetchFandoms } from '../firebase/firestore';
+import { getCachedAudio } from '../utils/audioCache';
 
 const { width } = Dimensions.get('window');
 const CLIP_DURATION = 10000;
 
-function shuffle(arr) {
-  return [...arr].sort(() => Math.random() - 0.5);
-}
+function shuffle(arr) { return [...arr].sort(() => Math.random() - 0.5); }
 
 function getRandomStart(song) {
-  const start = song.playStart || 10;
-  const end = (song.playEnd || 170) - 10;
-  const range = Math.max(0, end - start);
-  return start + Math.floor(Math.random() * range);
+  // Si es clip corto de 20s → elige aleatoriamente entre el fragmento 0-10s o 10-20s
+  if (song.isClip) return Math.random() < 0.5 ? 0 : 10;
+  // Canciones completas (legacy) → comportamiento original con playStart/playEnd
+  const start   = song.playStart ?? 10;
+  const end     = song.playEnd   ?? 170;
+  const safeEnd = end - 10;
+  if (safeEnd <= start) return start;
+  return start + Math.floor(Math.random() * (safeEnd - start));
+}
+
+function calcPoints(streak) {
+  if (streak <= 1) return 100;
+  if (streak === 2) return 150;
+  if (streak === 3) return 200;
+  return Math.min(400, 100 + streak * 60);
+}
+
+function buildOptions(correct, allSongs) {
+  const pool    = allSongs.filter(s => s.fandomId === correct.fandomId && s.id !== correct.id);
+  const wrongs  = shuffle(pool).slice(0, 3);
+  return shuffle([correct, ...wrongs]);
 }
 
 export default function GameScreen({ route, navigation }) {
-  const { fandomId } = route.params;
-  const fandom = FANDOMS.find(f => f.id === fandomId);
+  const { fandomId, theme: routeTheme, fandomName: routeFandomName } = route.params;
+  // Si viene el tema desde HomeScreen lo usamos; si no (deep link / fallback) lo derivamos del nombre
+  const [resolvedTheme, setResolvedTheme] = useState(routeTheme ?? null);
 
-  const buildQueue = () => {
-    // Mezcla todas las canciones disponibles y toma 10 al azar
-    return shuffle(fandom.songs).slice(0, Math.min(10, fandom.songs.length));
-  };
-
-  // Estados del juego
-  const [queue] = useState(buildQueue);
-  const [current, setCurrent] = useState(0);
-  const [score, setScore] = useState(0);
-  const [streak, setStreak] = useState(0);
-  const [maxStreak, setMaxStreak] = useState(0);
+  const [queue,        setQueue]        = useState([]);
+  const [allSongs,     setAllSongs]     = useState([]);
+  const [fandomName,   setFandomName]   = useState(routeFandomName ?? '');
+  const [loading,      setLoading]      = useState(true);
+  const [current,      setCurrent]      = useState(0);
+  const [score,        setScore]        = useState(0);
+  const [streak,       setStreak]       = useState(0);
+  const [maxStreak,    setMaxStreak]    = useState(0);
   const [correctCount, setCorrectCount] = useState(0);
-  
-  // Estados de UI
-  const [isReady, setIsReady] = useState(false);
-  const [answered, setAnswered] = useState(false);
-  const [options, setOptions] = useState([]);
-  const [selected, setSelected] = useState(null);
-  const [playing, setPlaying] = useState(false);
-  const [feedback, setFeedback] = useState('');
-  
-  // Referencias de Audio
-  const currentSound = useRef(null);
-  const nextSound = useRef(null);
+  const [answered,     setAnswered]     = useState(false);
+  const [options,      setOptions]      = useState([]);
+  const [selected,     setSelected]     = useState(null);
+  const [playing,      setPlaying]      = useState(false);
+  const [audioReady,   setAudioReady]   = useState(false);
+  const [feedback,     setFeedback]     = useState('');
+  const [randomStart,  setRandomStart]  = useState(0);
 
-  // Animaciones
-  const timerAnim = useRef(new Animated.Value(1)).current;
+  const scoreRef        = useRef(0);
+  const correctCountRef = useRef(0);
+  const streakRef       = useRef(0);
+  const maxStreakRef    = useRef(0);
+  const answeredRef     = useRef(false);
+  const currentRef      = useRef(0);
+  const queueRef        = useRef([]);
+  const allSongsRef     = useRef([]);
+
+  const ring1Anim    = useRef(new Animated.Value(1)).current;
+  const ring2Anim    = useRef(new Animated.Value(1)).current;
+  const ringLoop     = useRef(null);
+  const soundRef     = useRef(null);
+  const timerAnim    = useRef(new Animated.Value(1)).current;
+  const timerRef     = useRef(null);
   const progressAnim = useRef(new Animated.Value(0)).current;
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-  const timerRef = useRef(null);
+
+  useEffect(() => {
+    Promise.all([fetchSongs(fandomId), fetchFandoms()]).then(([songs, fandoms]) => {
+      allSongsRef.current = songs;
+      setAllSongs(songs);
+
+      if (fandoms) {
+        const f = fandoms.find(f => f.id === fandomId);
+        if (f) {
+          if (!routeFandomName) setFandomName(f.name);
+          if (!routeTheme) setResolvedTheme(getFandomTheme(f.name));
+        }
+      }
+
+      const q = shuffle(songs).slice(0, Math.min(10, songs.length));
+      queueRef.current = q;
+      setQueue(q);
+      setLoading(false);
+    });
+  }, []);
 
   const question = queue[current];
 
-  // 1. Inicialización
-  useEffect(() => {
-    const initGame = async () => {
-      await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
-      await prepareSound(0, 'current');
-      setIsReady(true);
-      if (queue.length > 1) prepareSound(1, 'next');
-    };
-    initGame();
-    return () => cleanupSounds();
+  const stopAudio = useCallback(async () => {
+    clearTimeout(timerRef.current);
+    if (soundRef.current) {
+      await soundRef.current.stopAsync().catch(() => {});
+      await soundRef.current.unloadAsync().catch(() => {});
+      soundRef.current = null;
+    }
+    setPlaying(false);
   }, []);
 
-  // 2. Al cambiar de pregunta
   useEffect(() => {
-    if (isReady) {
-      generateOptions();
-      startPlaying();
-    }
-  }, [current, isReady]);
+    if (question) generateOptions();
+    return () => { stopAudio(); };
+  }, [current, question]);
 
-  const cleanupSounds = async () => {
-    if (currentSound.current) await currentSound.current.unloadAsync().catch(()=>{});
-    if (nextSound.current) await nextSound.current.unloadAsync().catch(()=>{});
-  };
+  useEffect(() => {
+    if (queue.length === 0) return;
+    Animated.timing(progressAnim, {
+      toValue: current / queue.length,
+      duration: 300, useNativeDriver: false,
+    }).start();
+  }, [current, queue]);
 
-  const prepareSound = async (index, type) => {
-    try {
-      const song = queue[index];
-      const startTime = getRandomStart(song);
-      const { sound } = await Audio.Sound.createAsync(
-        song.file,
-        { positionMillis: startTime * 1000, shouldPlay: false }
+  useEffect(() => {
+    if (playing) {
+      ring1Anim.setValue(1); ring2Anim.setValue(1);
+      ringLoop.current = Animated.loop(
+        Animated.sequence([
+          Animated.parallel([
+            Animated.timing(ring1Anim, { toValue: 1.35, duration: 700, useNativeDriver: true }),
+            Animated.timing(ring2Anim, { toValue: 1.20, duration: 700, useNativeDriver: true }),
+          ]),
+          Animated.parallel([
+            Animated.timing(ring1Anim, { toValue: 1, duration: 700, useNativeDriver: true }),
+            Animated.timing(ring2Anim, { toValue: 1, duration: 700, useNativeDriver: true }),
+          ]),
+        ])
       );
-      
-      if (type === 'current') {
-        currentSound.current = sound;
-      } else {
-        nextSound.current = sound;
-      }
-    } catch (e) {
-      console.log("Error cargando audio:", e);
+      ringLoop.current.start();
+    } else {
+      if (ringLoop.current) ringLoop.current.stop();
+      ring1Anim.setValue(1); ring2Anim.setValue(1);
     }
-  };
+    return () => { if (ringLoop.current) ringLoop.current.stop(); };
+  }, [playing]);
 
   const generateOptions = () => {
-    const wrongs = shuffle(fandom.songs.filter(s => s.id !== question.id)).slice(0, 3);
-    setOptions(shuffle([question, ...wrongs]));
+    if (!question) return;
+    setOptions(buildOptions(question, allSongsRef.current));
     setSelected(null);
     setAnswered(false);
+    answeredRef.current = false;
     setFeedback('');
+    setPlaying(false);
+    setAudioReady(false);
     timerAnim.setValue(1);
+    const start = getRandomStart(question);
+    setRandomStart(start);
+    setTimeout(() => playFragment(question, start), 400);
   };
 
-  const startPlaying = async () => {
-    if (!currentSound.current) return;
-    
-    try {
+  const playFragment = async (songOverride, startOverride) => {
+    const song  = songOverride  || question;
+    const start = startOverride ?? randomStart;
+    if (!song) return;
+    await stopAudio();
+
+    const startPlayback = async (uri) => {
+      const { sound } = await Audio.Sound.createAsync(
+        { uri },
+        { positionMillis: start * 1000 }
+      );
+      soundRef.current = sound;
+      await sound.playAsync();
       setPlaying(true);
-      await currentSound.current.playAsync();
+      setAudioReady(true);
 
-      Animated.timing(timerAnim, {
-        toValue: 0,
-        duration: CLIP_DURATION,
-        useNativeDriver: false,
-      }).start();
+      timerAnim.setValue(1);
+      Animated.timing(timerAnim, { toValue: 0, duration: CLIP_DURATION, useNativeDriver: false }).start();
 
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulseAnim, { toValue: 1.15, duration: 500, useNativeDriver: true }),
-          Animated.timing(pulseAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
-        ])
-      ).start();
-
-      timerRef.current = setTimeout(() => {
-        if (!answered) handleAnswer({ id: 'timeout' });
+      timerRef.current = setTimeout(async () => {
+        await stopAudio();
+        if (!answeredRef.current) {
+          setFeedback(`⏱ Tiempo — era: ${song.title}`);
+          setTimeout(nextQuestion, 1800);
+        }
       }, CLIP_DURATION);
+    };
 
+    try {
+      await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
+      const uri = await getCachedAudio(song);
+      await startPlayback(uri);
     } catch (e) {
-      setFeedback('⚠ Error al reproducir');
+      if (e?.code === 'NO_SPACE') {
+        console.warn('Sin espacio para caché, usando stream directo.');
+        setFeedback('⚠ Almacenamiento lleno — reproduciendo en línea');
+        setTimeout(() => setFeedback(''), 2500);
+      } else {
+        console.error('getCachedAudio error:', e?.message || e);
+      }
+      try {
+        await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
+        await startPlayback(song.audioUrl);
+      } catch (e2) {
+        console.error('playFragment fallback error:', e2?.message || e2);
+        setFeedback('⚠ No se pudo cargar el audio');
+      }
     }
   };
 
   const handleAnswer = async (opt) => {
-    if (answered) return;
+    if (answeredRef.current) return;
+    answeredRef.current = true;
     setAnswered(true);
     setSelected(opt.id);
-    clearTimeout(timerRef.current);
-    
-    if (currentSound.current) {
-      await currentSound.current.stopAsync().catch(()=>{});
-      setPlaying(false);
-    }
+    await stopAudio();
 
     const isCorrect = opt.id === question.id;
     if (isCorrect) {
-      const newStreak = streak + 1;
-      const pts = 100 + (newStreak > 1 ? newStreak * 20 : 0);
+      const newStreak = streakRef.current + 1;
+      const newMax    = Math.max(maxStreakRef.current, newStreak);
+      const pts       = calcPoints(newStreak);
+      streakRef.current        = newStreak;
+      maxStreakRef.current     = newMax;
+      scoreRef.current        += pts;
+      correctCountRef.current += 1;
       setStreak(newStreak);
-      setMaxStreak(Math.max(maxStreak, newStreak));
-      setScore(s => s + pts);
-      setCorrectCount(c => c + 1);
-      setFeedback(newStreak > 1 ? `🔥 Racha x${newStreak} (+${pts})` : '✨ ¡Correcto!');
+      setMaxStreak(newMax);
+      setScore(scoreRef.current);
+      setCorrectCount(correctCountRef.current);
+      setFeedback(newStreak > 1 ? `✓ ¡Correcto! Racha x${newStreak} (+${pts})` : `✓ ¡Correcto! (+${pts})`);
     } else {
+      streakRef.current = 0;
       setStreak(0);
-      setFeedback(opt.id === 'timeout' ? `⏰ Tiempo: ${question.title}` : `❌ Era: ${question.title}`);
+      setFeedback(`✗ Era: ${question.title}`);
     }
-
-    Animated.spring(progressAnim, {
-      toValue: (current + 1) / queue.length,
-      useNativeDriver: false,
-    }).start();
-
-    setTimeout(nextQuestion, 2000);
+    setTimeout(nextQuestion, 1800);
   };
 
-  const nextQuestion = async () => {
-    if (current + 1 >= queue.length) {
+  const nextQuestion = () => {
+    const q = queueRef.current;
+    const c = currentRef.current;
+    if (c + 1 >= q.length) {
       navigation.replace('Results', {
-        score, correct: correctCount, total: queue.length, maxStreak, fandomId
+        score:      scoreRef.current,
+        correct:    correctCountRef.current,
+        total:      q.length,
+        maxStreak:  maxStreakRef.current,
+        fandomId,
+        fandomName,
+        theme:      resolvedTheme,
       });
-      return;
-    }
-
-    if (currentSound.current) await currentSound.current.unloadAsync().catch(()=>{});
-    currentSound.current = nextSound.current;
-    nextSound.current = null;
-
-    setCurrent(c => c + 1);
-
-    if (current + 2 < queue.length) {
-      prepareSound(current + 2, 'next');
+    } else {
+      currentRef.current = c + 1;
+      setCurrent(c + 1);
     }
   };
 
-  if (!isReady) {
+  // ── Pantallas de estado ───────────────────────────────────────
+
+  if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>¡Prepárate!</Text>
-        <Text style={styles.loadingSub}>Cargando desafío...</Text>
+      <View style={styles.loadingWrap}>
+        <Text style={styles.loadingText}>Cargando...</Text>
       </View>
     );
   }
 
-  const timerWidth = timerAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0%', '100%'],
-  });
+  if (queue.length === 0) {
+    return (
+      <View style={styles.loadingWrap}>
+        <Text style={{ fontSize: 40 }}>😅</Text>
+        <Text style={styles.loadingText}>No hay canciones para este fandom.</Text>
+        <TouchableOpacity style={styles.backBtnCenter} onPress={() => navigation.goBack()}>
+          <Text style={styles.backTextCenter}>← Volver</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
-  const progressWidth = progressAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0%', '100%'],
-  });
+  // ── Render principal ──────────────────────────────────────────
+
+  // Tema activo: resuelto async o default mientras carga
+  const theme = resolvedTheme ?? getFandomTheme('');
+
+  const timerWidth    = timerAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] });
+  const progressWidth = progressAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] });
+
+  const getOptionStyle = (opt) => {
+    if (!answered) return styles.optionBtn;
+    if (opt.id === question.id) return [styles.optionBtn, styles.optionCorrect];
+    if (opt.id === selected)    return [styles.optionBtn, styles.optionWrong];
+    return [styles.optionBtn, styles.optionDisabled];
+  };
+
+  const getOptionTextStyle = (opt) => {
+    if (!answered) return styles.optionText;
+    if (opt.id === question.id) return [styles.optionText, styles.optionTextCorrect];
+    if (opt.id === selected)    return [styles.optionText, styles.optionTextWrong];
+    return [styles.optionText, styles.optionTextDisabled];
+  };
+
+  const letters = ['A', 'B', 'C', 'D'];
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" />
-      
+    <View style={[styles.container, { backgroundColor: theme.bg }]}>
+      <StatusBar barStyle="dark-content" backgroundColor={theme.bg} />
+
       <View style={styles.header}>
-        <TouchableOpacity style={styles.exitBtn} onPress={() => navigation.goBack()}>
-          <Text style={styles.exitText}>✕</Text>
+        <TouchableOpacity style={styles.backBtn} onPress={() => { stopAudio(); navigation.goBack(); }}>
+          <Text style={styles.backText}>← Salir</Text>
         </TouchableOpacity>
-        <View style={styles.progressContainer}>
-          <View style={styles.progressTrack}>
-            <Animated.View style={[styles.progressBar, { width: progressWidth }]} />
+        <View style={styles.stats}>
+          <View style={styles.statPill}>
+            <Text style={styles.statText}>{current + 1}/{queue.length}</Text>
           </View>
-          <Text style={styles.progressText}>{current + 1} de {queue.length}</Text>
+          {streak > 1 && (
+            <View style={[styles.statPill, styles.statPillStreak]}>
+              <Text style={[styles.statText, styles.statTextStreak]}>🔥 x{streak}</Text>
+            </View>
+          )}
+          <View style={[styles.statPill, styles.statPillScore, { borderColor: theme.accent, backgroundColor: theme.accentLight }]}>
+            <Text style={[styles.statText, { color: theme.accent, fontWeight: '500' }]}>✦ {score}</Text>
+          </View>
         </View>
-        <View style={styles.scoreBadge}><Text style={styles.scoreText}>{score}</Text></View>
       </View>
 
-      <View style={styles.playerCard}>
-        <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-          <View style={[styles.playBtn, playing && styles.playBtnActive]}>
-            <Text style={[styles.playIcon, playing && styles.playIconActive]}>
-              {playing ? '❙❙' : '▶'}
-            </Text>
-          </View>
-        </Animated.View>
-        <Text style={styles.hintText}>
-          {answered ? 'Respuesta revelada' : 'Escuchando...'}
+      <View style={styles.progressWrap}>
+        <Animated.View style={[styles.progressBar, { width: progressWidth, backgroundColor: theme.accent }]} />
+      </View>
+
+      <View style={[styles.audioCard, { backgroundColor: theme.cardBg }]}>
+        <View style={styles.audioVisual}>
+          {playing && (
+            <>
+              <Animated.View style={[styles.ring, styles.ring1, { transform: [{ scale: ring1Anim }] }]} />
+              <Animated.View style={[styles.ring, styles.ring2, { transform: [{ scale: ring2Anim }] }]} />
+            </>
+          )}
+          <TouchableOpacity
+            style={[styles.playBtn, { backgroundColor: theme.bg }]}
+            onPress={() => { if (!answered) playFragment(); }}
+            activeOpacity={0.85}
+            disabled={answered || playing}
+          >
+            <Text style={[styles.playBtnText, { color: theme.accent }]}>{playing ? '■' : '▶'}</Text>
+          </TouchableOpacity>
+        </View>
+        <Text style={styles.audioHint}>
+          {answered ? '—' : playing ? 'Escuchando...' : audioReady ? '▶ Toca para repetir' : 'Cargando audio...'}
         </Text>
-        <View style={styles.timerTrack}>
+        <View style={styles.timerWrap}>
           <Animated.View style={[styles.timerBar, { width: timerWidth }]} />
         </View>
       </View>
 
-      <View style={styles.optionsContainer}>
-        {options.map((opt) => (
+      <View style={styles.optionsGrid}>
+        {options.map((opt, i) => (
           <TouchableOpacity
             key={opt.id}
-            style={[
-              styles.optionBtn,
-              answered && opt.id === question.id && styles.optionCorrect,
-              answered && opt.id === selected && opt.id !== question.id && styles.optionWrong,
-              answered && opt.id !== question.id && opt.id !== selected && styles.optionDisabled
-            ]}
+            style={getOptionStyle(opt)}
             onPress={() => handleAnswer(opt)}
+            activeOpacity={0.8}
             disabled={answered}
           >
-            <Text style={styles.optionTitle}>{opt.title}</Text>
-            <Text style={styles.optionArtist}>{opt.artist}</Text>
+            <Text style={styles.optLetter}>{letters[i]}</Text>
+            <Text style={getOptionTextStyle(opt)}>{opt.title}</Text>
+            <Text style={styles.optArtist}>{fandomName}</Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      {feedback !== '' && (
-        <View style={styles.feedbackContainer}>
-          <Text style={[styles.feedbackText, (feedback.includes('❌') || feedback.includes('⏰')) ? styles.textError : styles.textSuccess]}>
-            {feedback}
-          </Text>
-        </View>
-      )}
-    </SafeAreaView>
+      <Text style={[
+        styles.feedback,
+        feedback.startsWith('✓') ? styles.feedbackCorrect : styles.feedbackWrong,
+      ]}>
+        {feedback}
+      </Text>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  loadingContainer: { flex: 1, backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' },
-  loadingText: { fontSize: 28, fontWeight: '900', color: colors.primary, marginTop: 20 },
-  loadingSub: { fontSize: 14, color: colors.textTertiary, marginTop: 5 },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 15 },
-  exitBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', elevation: 2 },
-  exitText: { fontSize: 18, color: colors.textSecondary, fontWeight: 'bold' },
-  progressContainer: { flex: 1, marginHorizontal: 15, alignItems: 'center' },
-  progressTrack: { width: '100%', height: 8, backgroundColor: colors.border, borderRadius: 4, overflow: 'hidden', marginBottom: 4 },
-  progressBar: { height: '100%', backgroundColor: colors.primary },
-  progressText: { fontSize: 12, color: colors.textTertiary, fontWeight: '600' },
-  scoreBadge: { backgroundColor: colors.accent, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 15 },
-  scoreText: { color: colors.surface, fontWeight: 'bold', fontSize: 14 },
-  playerCard: { backgroundColor: colors.surface, margin: 20, borderRadius: 30, padding: 30, alignItems: 'center', elevation: 4 },
-  playBtn: { width: 80, height: 80, borderRadius: 40, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center', borderWidth: 4, borderColor: colors.primary },
-  playBtnActive: { backgroundColor: colors.primary },
-  playIcon: { fontSize: 30, color: colors.primary, marginLeft: 5 },
-  playIconActive: { color: colors.surface, marginLeft: 0 },
-  hintText: { color: colors.textSecondary, fontSize: 14, marginBottom: 20, fontWeight: '500' },
-  timerTrack: { width: '100%', height: 6, backgroundColor: colors.primaryLight, borderRadius: 3, overflow: 'hidden' },
-  timerBar: { height: '100%', backgroundColor: colors.primary },
-  optionsContainer: { paddingHorizontal: 15, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-  optionBtn: { width: '48%', backgroundColor: colors.surface, borderRadius: 20, padding: 20, marginBottom: 15, borderWidth: 2, borderColor: colors.border, elevation: 2 },
-  optionTitle: { fontSize: 15, fontWeight: 'bold', color: colors.textPrimary, textAlign: 'center', marginBottom: 4 },
-  optionArtist: { fontSize: 12, color: colors.textTertiary, textAlign: 'center' },
-  optionCorrect: { borderColor: colors.success, backgroundColor: colors.successBg },
-  optionWrong: { borderColor: colors.error, backgroundColor: colors.errorBg },
-  optionDisabled: { opacity: 0.6 },
-  feedbackContainer: { position: 'absolute', bottom: 40, left: 20, right: 20, backgroundColor: colors.surface, padding: 15, borderRadius: 15, alignItems: 'center', elevation: 10 },
-  feedbackText: { fontSize: 16, fontWeight: 'bold' },
-  textSuccess: { color: colors.success },
-  textError: { color: colors.error },
+  container:     { flex: 1, backgroundColor: colors.cream, paddingTop: 48 },
+  loadingWrap:   { flex: 1, backgroundColor: colors.cream, alignItems: 'center', justifyContent: 'center', padding: 32 },
+  loadingText:   { fontSize: 14, color: colors.textSoft },
+  backBtnCenter: { paddingVertical: 12, paddingHorizontal: 24, backgroundColor: colors.creamDark, borderRadius: 12 },
+  backTextCenter:{ fontSize: 14, color: colors.textSoft, fontWeight: '500' },
+  header:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginBottom: 12 },
+  backBtn:       { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, backgroundColor: colors.creamDark },
+  backText:      { fontSize: 13, color: colors.textSoft, fontWeight: '500' },
+  stats:         { flexDirection: 'row', gap: 8 },
+  statPill:      { paddingVertical: 6, paddingHorizontal: 14, borderRadius: 20, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.creamDeep },
+  statPillScore: { borderColor: colors.purpleLight, backgroundColor: colors.purplePale },
+  statPillStreak:{ borderColor: '#E07830', backgroundColor: '#FFF3EC' },
+  statText:      { fontSize: 13, color: colors.textSoft },
+  statTextScore: { color: colors.purple, fontWeight: '500' },
+  statTextStreak:{ color: '#C05820', fontWeight: '600' },
+  progressWrap:  { height: 3, backgroundColor: colors.creamDeep, marginHorizontal: 20, borderRadius: 2, overflow: 'hidden', marginBottom: 20 },
+  progressBar:   { height: '100%', backgroundColor: colors.purple, borderRadius: 2 },
+  audioCard:     { backgroundColor: colors.purple, marginHorizontal: 20, borderRadius: 24, padding: 28, alignItems: 'center', gap: 16, elevation: 10, marginBottom: 20 },
+  audioVisual:   { width: 90, height: 90, alignItems: 'center', justifyContent: 'center' },
+  ring:          { position: 'absolute', borderRadius: 50, borderWidth: 2, borderColor: 'rgba(245,240,232,0.25)' },
+  ring1:         { width: 90, height: 90 },
+  ring2:         { width: 70, height: 70 },
+  playBtn:       { width: 60, height: 60, borderRadius: 30, backgroundColor: colors.cream, alignItems: 'center', justifyContent: 'center', elevation: 5 },
+  playBtnText:   { fontSize: 20, color: colors.purple },
+  audioHint:     { fontSize: 13, color: 'rgba(245,240,232,0.7)', fontWeight: '300' },
+  timerWrap:     { width: '100%', height: 4, backgroundColor: 'rgba(245,240,232,0.15)', borderRadius: 2, overflow: 'hidden' },
+  timerBar:      { height: '100%', backgroundColor: colors.cream, borderRadius: 2 },
+  optionsGrid:   { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 20, gap: 10 },
+  optionBtn:     { width: (width - 50) / 2, backgroundColor: colors.white, borderWidth: 2, borderColor: colors.creamDeep, borderRadius: 16, padding: 16, gap: 4 },
+  optionCorrect:     { backgroundColor: colors.correctBg, borderColor: colors.correct },
+  optionWrong:       { backgroundColor: colors.wrongBg, borderColor: colors.wrong },
+  optionDisabled:    { opacity: 0.5 },
+  optLetter:         { fontSize: 10, letterSpacing: 1.5, color: colors.textSoft, fontWeight: '500', textTransform: 'uppercase' },
+  optionText:        { fontSize: 13, color: colors.textDark, fontWeight: '500', lineHeight: 18 },
+  optionTextCorrect: { color: colors.correct },
+  optionTextWrong:   { color: colors.wrong },
+  optionTextDisabled:{ color: colors.textSoft },
+  optArtist:         { fontSize: 11, color: colors.textSoft, fontWeight: '300' },
+  feedback:          { textAlign: 'center', fontSize: 14, fontWeight: '500', marginTop: 16, minHeight: 20 },
+  feedbackCorrect:   { color: colors.correct },
+  feedbackWrong:     { color: colors.wrong },
 });

@@ -3,7 +3,16 @@
     "name": "SoundQuiz",
     "slug": "SoundQuiz",
     "version": "1.0.0",
+    "owner": "dedikastudio",
     "orientation": "portrait",
+    "updates": {
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
@@ -25,6 +34,14 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-video"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "0c36d557-bcdc-4ab8-8ce9-435fb27f9a91"
+      }
     }
   }
 }

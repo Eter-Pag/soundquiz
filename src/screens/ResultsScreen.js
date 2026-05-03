@@ -1,36 +1,34 @@
 import React from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  ScrollView, StatusBar, SafeAreaView
+  ScrollView, StatusBar, SafeAreaView,
 } from 'react-native';
 import { colors } from '../theme';
 
 export default function ResultsScreen({ route, navigation }) {
-  const { score, correct, total, maxStreak, fandomId, difficulty } = route.params;
+  const { score, correct, total, maxStreak, fandomId, fandomName, theme } = route.params;
   const pct = correct / total;
 
   let icon, title, sub;
-  if (pct === 1) { 
-    icon = '🏆'; title = '¡Perfecto!'; sub = '¡Eres un fan legendario!'; 
-  } else if (pct >= 0.8) { 
-    icon = '🌟'; title = '¡Increíble!'; sub = 'Casi perfecto, ¡muy bien!'; 
-  } else if (pct >= 0.5) { 
-    icon = '🎵'; title = '¡Buen intento!'; sub = 'Conoces bien las canciones.'; 
-  } else { 
-    icon = '🎧'; title = '¡A practicar!'; sub = 'Sigue escuchando para mejorar.'; 
-  }
+  if (pct === 1)       { icon = '🏆'; title = '¡Perfecto!';     sub = '¡Eres un fan legendario!'; }
+  else if (pct >= 0.8) { icon = '🌟'; title = '¡Increíble!';    sub = 'Casi perfecto, ¡muy bien!'; }
+  else if (pct >= 0.5) { icon = '🎵'; title = '¡Buen intento!'; sub = 'Conoces bien las canciones.'; }
+  else                 { icon = '🎧'; title = '¡A practicar!';  sub = 'Sigue escuchando para mejorar.'; }
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle="dark-content" backgroundColor={colors.cream} />
       <ScrollView contentContainerStyle={styles.content}>
-        
+
+        {/* Tarjeta principal */}
         <View style={styles.resultCard}>
           <Text style={styles.icon}>{icon}</Text>
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.subtitle}>{sub}</Text>
+          {fandomName ? <Text style={styles.fandomTag}>{fandomName}</Text> : null}
         </View>
 
+        {/* Stats */}
         <View style={styles.statsRow}>
           <View style={styles.statBox}>
             <Text style={styles.statLabel}>PUNTUACIÓN</Text>
@@ -42,24 +40,25 @@ export default function ResultsScreen({ route, navigation }) {
           </View>
         </View>
 
+        {/* Racha */}
         <View style={styles.streakCard}>
           <Text style={styles.streakLabel}>MEJOR RACHA</Text>
           <Text style={styles.streakValue}>🔥 {maxStreak}</Text>
         </View>
 
+        {/* Acciones */}
         <View style={styles.actions}>
-          <TouchableOpacity 
-            style={styles.mainBtn} 
-            onPress={() => navigation.replace('Game', { fandomId, difficulty })}
+          <TouchableOpacity
+            style={styles.mainBtn}
+            onPress={() => navigation.replace('Game', { fandomId, theme, fandomName })}
           >
-            <Text style={styles.mainBtnText}>REINTENTAR</Text>
+            <Text style={styles.mainBtnText}>Reintentar</Text>
           </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.secondaryBtn} 
+          <TouchableOpacity
+            style={styles.secondaryBtn}
             onPress={() => navigation.replace('Home')}
           >
-            <Text style={styles.secondaryBtnText}>VOLVER AL INICIO</Text>
+            <Text style={styles.secondaryBtnText}>Volver al inicio</Text>
           </TouchableOpacity>
         </View>
 
@@ -69,122 +68,62 @@ export default function ResultsScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  content: {
-    padding: 25,
-    alignItems: 'center',
-  },
+  container: { flex: 1, backgroundColor: colors.cream },
+  content:   { padding: 28, paddingTop: 24, alignItems: 'center', gap: 16 },
+
   resultCard: {
-    backgroundColor: colors.surface,
-    width: '100%',
-    borderRadius: 30,
-    padding: 40,
-    alignItems: 'center',
-    marginTop: 20,
-    marginBottom: 25,
+    backgroundColor: colors.white,
+    width: '100%', borderRadius: 24,
+    padding: 36, alignItems: 'center', gap: 8,
+    borderWidth: 2, borderColor: colors.creamDeep,
     elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
   },
-  icon: {
-    fontSize: 80,
-    marginBottom: 20,
+  icon:      { fontSize: 72, marginBottom: 4 },
+  title:     { fontSize: 30, fontWeight: '700', color: colors.textDark, letterSpacing: -0.5 },
+  subtitle:  { fontSize: 15, color: colors.textSoft, textAlign: 'center' },
+  fandomTag: {
+    marginTop: 4,
+    fontSize: 12, letterSpacing: 1.5, fontWeight: '500',
+    color: colors.purple,
+    backgroundColor: colors.purplePale,
+    paddingHorizontal: 12, paddingVertical: 4,
+    borderRadius: 20,
+    overflow: 'hidden',
   },
-  title: {
-    fontSize: 32,
-    fontWeight: '900',
-    color: colors.textPrimary,
-    marginBottom: 10,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    fontWeight: '500',
-  },
-  statsRow: {
-    flexDirection: 'row',
-    gap: 15,
-    marginBottom: 15,
-  },
+
+  statsRow: { flexDirection: 'row', gap: 12, width: '100%' },
   statBox: {
     flex: 1,
-    backgroundColor: colors.surface,
-    borderRadius: 20,
-    padding: 20,
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: colors.border,
+    backgroundColor: colors.white,
+    borderRadius: 18, padding: 20,
+    alignItems: 'center', gap: 6,
+    borderWidth: 2, borderColor: colors.creamDeep,
   },
-  statLabel: {
-    fontSize: 12,
-    color: colors.textTertiary,
-    fontWeight: 'bold',
-    marginBottom: 5,
-  },
-  statValue: {
-    fontSize: 24,
-    fontWeight: '900',
-    color: colors.primary,
-  },
+  statLabel: { fontSize: 11, letterSpacing: 2, color: colors.textSoft, fontWeight: '500' },
+  statValue: { fontSize: 26, fontWeight: '700', color: colors.purple },
+
   streakCard: {
     width: '100%',
-    backgroundColor: colors.primaryLight,
-    borderRadius: 20,
-    padding: 20,
-    alignItems: 'center',
-    marginBottom: 30,
-    borderWidth: 2,
-    borderColor: colors.primary,
+    backgroundColor: colors.purplePale,
+    borderRadius: 18, padding: 20,
+    alignItems: 'center', gap: 4,
+    borderWidth: 2, borderColor: colors.purple,
   },
-  streakLabel: {
-    fontSize: 12,
-    color: colors.primary,
-    fontWeight: 'bold',
-    marginBottom: 5,
-  },
-  streakValue: {
-    fontSize: 28,
-    fontWeight: '900',
-    color: colors.primary,
-  },
-  actions: {
-    width: '100%',
-    gap: 12,
-  },
+  streakLabel: { fontSize: 11, letterSpacing: 2, color: colors.purple, fontWeight: '500' },
+  streakValue: { fontSize: 30, fontWeight: '700', color: colors.purple },
+
+  actions: { width: '100%', gap: 12 },
   mainBtn: {
-    backgroundColor: colors.primary,
-    paddingVertical: 18,
-    borderRadius: 20,
-    alignItems: 'center',
-    elevation: 5,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    backgroundColor: colors.purple,
+    paddingVertical: 18, borderRadius: 16,
+    alignItems: 'center', elevation: 5,
   },
-  mainBtnText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '900',
-    letterSpacing: 1,
-  },
+  mainBtnText: { color: colors.cream, fontSize: 16, fontWeight: '600', letterSpacing: 0.3 },
   secondaryBtn: {
-    backgroundColor: colors.surface,
-    paddingVertical: 18,
-    borderRadius: 20,
+    backgroundColor: colors.white,
+    paddingVertical: 18, borderRadius: 16,
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: colors.border,
+    borderWidth: 2, borderColor: colors.creamDeep,
   },
-  secondaryBtnText: {
-    color: colors.textSecondary,
-    fontSize: 16,
-    fontWeight: '700',
-  },
+  secondaryBtnText: { color: colors.textSoft, fontSize: 16, fontWeight: '500' },
 });
