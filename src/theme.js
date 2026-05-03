@@ -203,9 +203,26 @@ const DEFAULT_THEME = {
   cardBg:      '#6366F1',
 };
 
+/** Tema Infinity All — fondo rojo */
+export const INFINITY_ALL_THEME = {
+  accent:      '#EF4444',
+  accentLight: '#FEF2F2',
+  accentText:  '#B91C1C',
+  bg:          '#FFF5F5',
+  cardBg:      '#DC2626',
+};
+
+/** Tema Epic — fondo negro */
+export const EPIC_THEME = {
+  accent:      '#F59E0B',
+  accentLight: '#1a1a14',
+  accentText:  '#F59E0B',
+  bg:          '#0D0D0D',
+  cardBg:      '#1a1a14',
+};
+
 /**
  * Devuelve la paleta de un fandom buscando keywords en su nombre.
- * @param {string} fandomName  - Nombre del fandom (viene de Firestore)
  * @returns {object} tema con { accent, accentLight, accentText, bg, cardBg }
  */
 export function getFandomTheme(fandomName = '') {

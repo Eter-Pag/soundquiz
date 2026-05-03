@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { Audio } from 'expo-av';
 import { colors, getFandomTheme } from '../theme';
+import { useTheme } from '../context/ThemeContext';
 import { fetchSongs, fetchFandoms } from '../firebase/firestore';
 import { getCachedAudio } from '../utils/audioCache';
 
@@ -14,9 +15,7 @@ const CLIP_DURATION = 10000;
 function shuffle(arr) { return [...arr].sort(() => Math.random() - 0.5); }
 
 function getRandomStart(song) {
-  // Si es clip corto de 20s → elige aleatoriamente entre el fragmento 0-10s o 10-20s
   if (song.isClip) return Math.random() < 0.5 ? 0 : 10;
-  // Canciones completas (legacy) → comportamiento original con playStart/playEnd
   const start   = song.playStart ?? 10;
   const end     = song.playEnd   ?? 170;
   const safeEnd = end - 10;
@@ -32,14 +31,14 @@ function calcPoints(streak) {
 }
 
 function buildOptions(correct, allSongs) {
-  const pool    = allSongs.filter(s => s.fandomId === correct.fandomId && s.id !== correct.id);
-  const wrongs  = shuffle(pool).slice(0, 3);
+  const pool   = allSongs.filter(s => s.fandomId === correct.fandomId && s.id !== correct.id);
+  const wrongs = shuffle(pool).slice(0, 3);
   return shuffle([correct, ...wrongs]);
 }
 
 export default function GameScreen({ route, navigation }) {
+  const { theme: appTheme } = useTheme();
   const { fandomId, theme: routeTheme, fandomName: routeFandomName } = route.params;
-  // Si viene el tema desde HomeScreen lo usamos; si no (deep link / fallback) lo derivamos del nombre
   const [resolvedTheme, setResolvedTheme] = useState(routeTheme ?? null);
 
   const [queue,        setQueue]        = useState([]);
@@ -80,7 +79,6 @@ export default function GameScreen({ route, navigation }) {
     Promise.all([fetchSongs(fandomId), fetchFandoms()]).then(([songs, fandoms]) => {
       allSongsRef.current = songs;
       setAllSongs(songs);
-
       if (fandoms) {
         const f = fandoms.find(f => f.id === fandomId);
         if (f) {
@@ -88,7 +86,6 @@ export default function GameScreen({ route, navigation }) {
           if (!routeTheme) setResolvedTheme(getFandomTheme(f.name));
         }
       }
-
       const q = shuffle(songs).slice(0, Math.min(10, songs.length));
       queueRef.current = q;
       setQueue(q);
@@ -174,10 +171,8 @@ export default function GameScreen({ route, navigation }) {
       await sound.playAsync();
       setPlaying(true);
       setAudioReady(true);
-
       timerAnim.setValue(1);
       Animated.timing(timerAnim, { toValue: 0, duration: CLIP_DURATION, useNativeDriver: false }).start();
-
       timerRef.current = setTimeout(async () => {
         await stopAudio();
         if (!answeredRef.current) {
@@ -193,7 +188,6 @@ export default function GameScreen({ route, navigation }) {
       await startPlayback(uri);
     } catch (e) {
       if (e?.code === 'NO_SPACE') {
-        console.warn('Sin espacio para caché, usando stream directo.');
         setFeedback('⚠ Almacenamiento lleno — reproduciendo en línea');
         setTimeout(() => setFeedback(''), 2500);
       } else {
@@ -215,7 +209,6 @@ export default function GameScreen({ route, navigation }) {
     setAnswered(true);
     setSelected(opt.id);
     await stopAudio();
-
     const isCorrect = opt.id === question.id;
     if (isCorrect) {
       const newStreak = streakRef.current + 1;
@@ -243,13 +236,13 @@ export default function GameScreen({ route, navigation }) {
     const c = currentRef.current;
     if (c + 1 >= q.length) {
       navigation.replace('Results', {
-        score:      scoreRef.current,
-        correct:    correctCountRef.current,
-        total:      q.length,
-        maxStreak:  maxStreakRef.current,
+        score:     scoreRef.current,
+        correct:   correctCountRef.current,
+        total:     q.length,
+        maxStreak: maxStreakRef.current,
         fandomId,
         fandomName,
-        theme:      resolvedTheme,
+        theme:     resolvedTheme,
       });
     } else {
       currentRef.current = c + 1;
@@ -257,33 +250,28 @@ export default function GameScreen({ route, navigation }) {
     }
   };
 
-  // ── Pantallas de estado ───────────────────────────────────────
-
   if (loading) {
     return (
-      <View style={styles.loadingWrap}>
-        <Text style={styles.loadingText}>Cargando...</Text>
+      <View style={[styles.loadingWrap, { backgroundColor: appTheme.bg }]}>
+        <StatusBar barStyle={appTheme.statusBar} backgroundColor={appTheme.bg} />
+        <Text style={[styles.loadingText, { color: appTheme.textSub }]}>Cargando...</Text>
       </View>
     );
   }
 
   if (queue.length === 0) {
     return (
-      <View style={styles.loadingWrap}>
+      <View style={[styles.loadingWrap, { backgroundColor: appTheme.bg }]}>
         <Text style={{ fontSize: 40 }}>😅</Text>
-        <Text style={styles.loadingText}>No hay canciones para este fandom.</Text>
-        <TouchableOpacity style={styles.backBtnCenter} onPress={() => navigation.goBack()}>
-          <Text style={styles.backTextCenter}>← Volver</Text>
+        <Text style={[styles.loadingText, { color: appTheme.textSub }]}>No hay canciones para este fandom.</Text>
+        <TouchableOpacity style={[styles.backBtnCenter, { backgroundColor: appTheme.bg2 }]} onPress={() => navigation.goBack()}>
+          <Text style={[styles.backTextCenter, { color: appTheme.textSub }]}>← Volver</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
-  // ── Render principal ──────────────────────────────────────────
-
-  // Tema activo: resuelto async o default mientras carga
   const theme = resolvedTheme ?? getFandomTheme('');
-
   const timerWidth    = timerAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] });
   const progressWidth = progressAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] });
 
@@ -304,29 +292,32 @@ export default function GameScreen({ route, navigation }) {
   const letters = ['A', 'B', 'C', 'D'];
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.bg }]}>
-      <StatusBar barStyle="dark-content" backgroundColor={theme.bg} />
+    <View style={[styles.container, { backgroundColor: appTheme.bg }]}>
+      <StatusBar barStyle={appTheme.statusBar} backgroundColor={appTheme.bg} />
 
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => { stopAudio(); navigation.goBack(); }}>
-          <Text style={styles.backText}>← Salir</Text>
+        <TouchableOpacity
+          style={[styles.backBtn, { backgroundColor: appTheme.bg2, borderColor: appTheme.border }]}
+          onPress={() => { stopAudio(); navigation.goBack(); }}
+        >
+          <Text style={[styles.backText, { color: appTheme.textSub }]}>← Salir</Text>
         </TouchableOpacity>
         <View style={styles.stats}>
-          <View style={styles.statPill}>
-            <Text style={styles.statText}>{current + 1}/{queue.length}</Text>
+          <View style={[styles.statPill, { backgroundColor: appTheme.card, borderColor: appTheme.border }]}>
+            <Text style={[styles.statText, { color: appTheme.textSub }]}>{current + 1}/{queue.length}</Text>
           </View>
           {streak > 1 && (
             <View style={[styles.statPill, styles.statPillStreak]}>
               <Text style={[styles.statText, styles.statTextStreak]}>🔥 x{streak}</Text>
             </View>
           )}
-          <View style={[styles.statPill, styles.statPillScore, { borderColor: theme.accent, backgroundColor: theme.accentLight }]}>
-            <Text style={[styles.statText, { color: theme.accent, fontWeight: '500' }]}>✦ {score}</Text>
+          <View style={[styles.statPill, { borderColor: theme.accent, backgroundColor: theme.accentLight }]}>
+            <Text style={[styles.statText, { color: theme.accent, fontWeight: '500' }]}>✶ {score}</Text>
           </View>
         </View>
       </View>
 
-      <View style={styles.progressWrap}>
+      <View style={[styles.progressWrap, { backgroundColor: appTheme.border }]}>
         <Animated.View style={[styles.progressBar, { width: progressWidth, backgroundColor: theme.accent }]} />
       </View>
 
@@ -359,14 +350,17 @@ export default function GameScreen({ route, navigation }) {
         {options.map((opt, i) => (
           <TouchableOpacity
             key={opt.id}
-            style={getOptionStyle(opt)}
+            style={[
+              getOptionStyle(opt),
+              !answered && { backgroundColor: appTheme.card, borderColor: appTheme.border },
+            ]}
             onPress={() => handleAnswer(opt)}
             activeOpacity={0.8}
             disabled={answered}
           >
-            <Text style={styles.optLetter}>{letters[i]}</Text>
-            <Text style={getOptionTextStyle(opt)}>{opt.title}</Text>
-            <Text style={styles.optArtist}>{fandomName}</Text>
+            <Text style={[styles.optLetter, { color: appTheme.textSub }]}>{letters[i]}</Text>
+            <Text style={[getOptionTextStyle(opt), !answered && { color: appTheme.text }]}>{opt.title}</Text>
+            <Text style={[styles.optArtist, { color: appTheme.textSub }]}>{fandomName}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -382,45 +376,43 @@ export default function GameScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container:     { flex: 1, backgroundColor: colors.cream, paddingTop: 48 },
-  loadingWrap:   { flex: 1, backgroundColor: colors.cream, alignItems: 'center', justifyContent: 'center', padding: 32 },
-  loadingText:   { fontSize: 14, color: colors.textSoft },
-  backBtnCenter: { paddingVertical: 12, paddingHorizontal: 24, backgroundColor: colors.creamDark, borderRadius: 12 },
-  backTextCenter:{ fontSize: 14, color: colors.textSoft, fontWeight: '500' },
-  header:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginBottom: 12 },
-  backBtn:       { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, backgroundColor: colors.creamDark },
-  backText:      { fontSize: 13, color: colors.textSoft, fontWeight: '500' },
-  stats:         { flexDirection: 'row', gap: 8 },
-  statPill:      { paddingVertical: 6, paddingHorizontal: 14, borderRadius: 20, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.creamDeep },
-  statPillScore: { borderColor: colors.purpleLight, backgroundColor: colors.purplePale },
-  statPillStreak:{ borderColor: '#E07830', backgroundColor: '#FFF3EC' },
-  statText:      { fontSize: 13, color: colors.textSoft },
-  statTextScore: { color: colors.purple, fontWeight: '500' },
-  statTextStreak:{ color: '#C05820', fontWeight: '600' },
-  progressWrap:  { height: 3, backgroundColor: colors.creamDeep, marginHorizontal: 20, borderRadius: 2, overflow: 'hidden', marginBottom: 20 },
-  progressBar:   { height: '100%', backgroundColor: colors.purple, borderRadius: 2 },
-  audioCard:     { backgroundColor: colors.purple, marginHorizontal: 20, borderRadius: 24, padding: 28, alignItems: 'center', gap: 16, elevation: 10, marginBottom: 20 },
-  audioVisual:   { width: 90, height: 90, alignItems: 'center', justifyContent: 'center' },
-  ring:          { position: 'absolute', borderRadius: 50, borderWidth: 2, borderColor: 'rgba(245,240,232,0.25)' },
-  ring1:         { width: 90, height: 90 },
-  ring2:         { width: 70, height: 70 },
-  playBtn:       { width: 60, height: 60, borderRadius: 30, backgroundColor: colors.cream, alignItems: 'center', justifyContent: 'center', elevation: 5 },
-  playBtnText:   { fontSize: 20, color: colors.purple },
-  audioHint:     { fontSize: 13, color: 'rgba(245,240,232,0.7)', fontWeight: '300' },
-  timerWrap:     { width: '100%', height: 4, backgroundColor: 'rgba(245,240,232,0.15)', borderRadius: 2, overflow: 'hidden' },
-  timerBar:      { height: '100%', backgroundColor: colors.cream, borderRadius: 2 },
-  optionsGrid:   { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 20, gap: 10 },
-  optionBtn:     { width: (width - 50) / 2, backgroundColor: colors.white, borderWidth: 2, borderColor: colors.creamDeep, borderRadius: 16, padding: 16, gap: 4 },
-  optionCorrect:     { backgroundColor: colors.correctBg, borderColor: colors.correct },
-  optionWrong:       { backgroundColor: colors.wrongBg, borderColor: colors.wrong },
-  optionDisabled:    { opacity: 0.5 },
-  optLetter:         { fontSize: 10, letterSpacing: 1.5, color: colors.textSoft, fontWeight: '500', textTransform: 'uppercase' },
-  optionText:        { fontSize: 13, color: colors.textDark, fontWeight: '500', lineHeight: 18 },
-  optionTextCorrect: { color: colors.correct },
-  optionTextWrong:   { color: colors.wrong },
-  optionTextDisabled:{ color: colors.textSoft },
-  optArtist:         { fontSize: 11, color: colors.textSoft, fontWeight: '300' },
-  feedback:          { textAlign: 'center', fontSize: 14, fontWeight: '500', marginTop: 16, minHeight: 20 },
-  feedbackCorrect:   { color: colors.correct },
-  feedbackWrong:     { color: colors.wrong },
+  container:      { flex: 1, paddingTop: 48 },
+  loadingWrap:    { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
+  loadingText:    { fontSize: 14 },
+  backBtnCenter:  { paddingVertical: 12, paddingHorizontal: 24, borderRadius: 12, marginTop: 16 },
+  backTextCenter: { fontSize: 14, fontWeight: '500' },
+  header:         { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginBottom: 12 },
+  backBtn:        { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1 },
+  backText:       { fontSize: 13, fontWeight: '500' },
+  stats:          { flexDirection: 'row', gap: 8 },
+  statPill:       { paddingVertical: 6, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1 },
+  statPillStreak: { borderColor: '#E07830', backgroundColor: '#FFF3EC' },
+  statText:       { fontSize: 13 },
+  statTextStreak: { color: '#C05820', fontWeight: '600' },
+  progressWrap:   { height: 3, marginHorizontal: 20, borderRadius: 2, overflow: 'hidden', marginBottom: 20 },
+  progressBar:    { height: '100%', borderRadius: 2 },
+  audioCard:      { marginHorizontal: 20, borderRadius: 24, padding: 28, alignItems: 'center', gap: 16, elevation: 10, marginBottom: 20 },
+  audioVisual:    { width: 90, height: 90, alignItems: 'center', justifyContent: 'center' },
+  ring:           { position: 'absolute', borderRadius: 50, borderWidth: 2, borderColor: 'rgba(245,240,232,0.25)' },
+  ring1:          { width: 90, height: 90 },
+  ring2:          { width: 70, height: 70 },
+  playBtn:        { width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center', elevation: 5 },
+  playBtnText:    { fontSize: 20 },
+  audioHint:      { fontSize: 13, color: 'rgba(245,240,232,0.7)', fontWeight: '300' },
+  timerWrap:      { width: '100%', height: 4, backgroundColor: 'rgba(245,240,232,0.15)', borderRadius: 2, overflow: 'hidden' },
+  timerBar:       { height: '100%', backgroundColor: 'rgba(245,240,232,0.9)', borderRadius: 2 },
+  optionsGrid:    { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 20, gap: 10 },
+  optionBtn:      { width: (width - 50) / 2, borderWidth: 2, borderRadius: 16, padding: 16, gap: 4 },
+  optionCorrect:  { backgroundColor: colors.correctBg, borderColor: colors.correct },
+  optionWrong:    { backgroundColor: colors.wrongBg,   borderColor: colors.wrong },
+  optionDisabled: { opacity: 0.5 },
+  optLetter:      { fontSize: 10, letterSpacing: 1.5, fontWeight: '500', textTransform: 'uppercase' },
+  optionText:     { fontSize: 13, fontWeight: '500', lineHeight: 18 },
+  optionTextCorrect:  { color: colors.correct },
+  optionTextWrong:    { color: colors.wrong },
+  optionTextDisabled: { color: colors.textSoft },
+  optArtist:      { fontSize: 11, fontWeight: '300' },
+  feedback:       { textAlign: 'center', fontSize: 14, fontWeight: '500', marginTop: 16, minHeight: 20 },
+  feedbackCorrect:{ color: colors.correct },
+  feedbackWrong:  { color: colors.wrong },
 });

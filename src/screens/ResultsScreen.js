@@ -4,8 +4,10 @@ import {
   ScrollView, StatusBar, SafeAreaView,
 } from 'react-native';
 import { colors } from '../theme';
+import { useTheme } from '../context/ThemeContext';
 
 export default function ResultsScreen({ route, navigation }) {
+  const { theme: appTheme } = useTheme();
   const { score, correct, total, maxStreak, fandomId, fandomName, theme } = route.params;
   const pct = correct / total;
 
@@ -16,32 +18,32 @@ export default function ResultsScreen({ route, navigation }) {
   else                 { icon = '🎧'; title = '¡A practicar!';  sub = 'Sigue escuchando para mejorar.'; }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.cream} />
+    <SafeAreaView style={[styles.container, { backgroundColor: appTheme.bg }]}>
+      <StatusBar barStyle={appTheme.statusBar} backgroundColor={appTheme.bg} />
       <ScrollView contentContainerStyle={styles.content}>
 
         {/* Tarjeta principal */}
-        <View style={styles.resultCard}>
+        <View style={[styles.resultCard, { backgroundColor: appTheme.card, borderColor: appTheme.border }]}>
           <Text style={styles.icon}>{icon}</Text>
-          <Text style={styles.title}>{title}</Text>
-          <Text style={styles.subtitle}>{sub}</Text>
+          <Text style={[styles.title, { color: appTheme.text }]}>{title}</Text>
+          <Text style={[styles.subtitle, { color: appTheme.textSub }]}>{sub}</Text>
           {fandomName ? <Text style={styles.fandomTag}>{fandomName}</Text> : null}
         </View>
 
         {/* Stats */}
         <View style={styles.statsRow}>
-          <View style={styles.statBox}>
-            <Text style={styles.statLabel}>PUNTUACIÓN</Text>
+          <View style={[styles.statBox, { backgroundColor: appTheme.card, borderColor: appTheme.border }]}>
+            <Text style={[styles.statLabel, { color: appTheme.textSub }]}>PUNTUACIÓN</Text>
             <Text style={styles.statValue}>{score}</Text>
           </View>
-          <View style={styles.statBox}>
-            <Text style={styles.statLabel}>ACIERTOS</Text>
+          <View style={[styles.statBox, { backgroundColor: appTheme.card, borderColor: appTheme.border }]}>
+            <Text style={[styles.statLabel, { color: appTheme.textSub }]}>ACIERTOS</Text>
             <Text style={styles.statValue}>{correct}/{total}</Text>
           </View>
         </View>
 
         {/* Racha */}
-        <View style={styles.streakCard}>
+        <View style={[styles.streakCard, { backgroundColor: appTheme.card, borderColor: colors.purple }]}>
           <Text style={styles.streakLabel}>MEJOR RACHA</Text>
           <Text style={styles.streakValue}>🔥 {maxStreak}</Text>
         </View>
@@ -55,10 +57,10 @@ export default function ResultsScreen({ route, navigation }) {
             <Text style={styles.mainBtnText}>Reintentar</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={styles.secondaryBtn}
+            style={[styles.secondaryBtn, { backgroundColor: appTheme.card, borderColor: appTheme.border }]}
             onPress={() => navigation.replace('Home')}
           >
-            <Text style={styles.secondaryBtnText}>Volver al inicio</Text>
+            <Text style={[styles.secondaryBtnText, { color: appTheme.textSub }]}>Volver al inicio</Text>
           </TouchableOpacity>
         </View>
 
@@ -68,19 +70,18 @@ export default function ResultsScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.cream },
+  container: { flex: 1 },
   content:   { padding: 28, paddingTop: 24, alignItems: 'center', gap: 16 },
 
   resultCard: {
-    backgroundColor: colors.white,
     width: '100%', borderRadius: 24,
     padding: 36, alignItems: 'center', gap: 8,
-    borderWidth: 2, borderColor: colors.creamDeep,
+    borderWidth: 2,
     elevation: 4,
   },
   icon:      { fontSize: 72, marginBottom: 4 },
-  title:     { fontSize: 30, fontWeight: '700', color: colors.textDark, letterSpacing: -0.5 },
-  subtitle:  { fontSize: 15, color: colors.textSoft, textAlign: 'center' },
+  title:     { fontSize: 30, fontWeight: '700', letterSpacing: -0.5 },
+  subtitle:  { fontSize: 15, textAlign: 'center' },
   fandomTag: {
     marginTop: 4,
     fontSize: 12, letterSpacing: 1.5, fontWeight: '500',
@@ -94,20 +95,18 @@ const styles = StyleSheet.create({
   statsRow: { flexDirection: 'row', gap: 12, width: '100%' },
   statBox: {
     flex: 1,
-    backgroundColor: colors.white,
     borderRadius: 18, padding: 20,
     alignItems: 'center', gap: 6,
-    borderWidth: 2, borderColor: colors.creamDeep,
+    borderWidth: 2,
   },
-  statLabel: { fontSize: 11, letterSpacing: 2, color: colors.textSoft, fontWeight: '500' },
+  statLabel: { fontSize: 11, letterSpacing: 2, fontWeight: '500' },
   statValue: { fontSize: 26, fontWeight: '700', color: colors.purple },
 
   streakCard: {
     width: '100%',
-    backgroundColor: colors.purplePale,
     borderRadius: 18, padding: 20,
     alignItems: 'center', gap: 4,
-    borderWidth: 2, borderColor: colors.purple,
+    borderWidth: 2,
   },
   streakLabel: { fontSize: 11, letterSpacing: 2, color: colors.purple, fontWeight: '500' },
   streakValue: { fontSize: 30, fontWeight: '700', color: colors.purple },
@@ -120,10 +119,9 @@ const styles = StyleSheet.create({
   },
   mainBtnText: { color: colors.cream, fontSize: 16, fontWeight: '600', letterSpacing: 0.3 },
   secondaryBtn: {
-    backgroundColor: colors.white,
     paddingVertical: 18, borderRadius: 16,
     alignItems: 'center',
-    borderWidth: 2, borderColor: colors.creamDeep,
+    borderWidth: 2,
   },
-  secondaryBtnText: { color: colors.textSoft, fontSize: 16, fontWeight: '500' },
+  secondaryBtnText: { fontSize: 16, fontWeight: '500' },
 });
